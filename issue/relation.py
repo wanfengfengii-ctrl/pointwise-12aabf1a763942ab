@@ -1,11 +1,22 @@
 from calibration.revisions import ScenarioRevision
-from review.slopes import pair_slopes
+from review.geometry import marginal_pair_ranges, relative_points
 from strips.stations import StationMap
 
 
 def freeze_relative_evidence(revision: ScenarioRevision, stations: StationMap) -> dict:
-    columns = zip(*(pair_slopes(stations, row) for row in revision.batch.rows))
+    """Preserve exactly the relative readings any real convex mixture can realise.
+
+    The scenario points span the mixture hull, so keeping every distinct
+    relative point keeps the whole feasible set and nothing more.  The
+    absolute readings and the calibration record stay in the source database;
+    only the relative geometry crosses into the fixed piece.
+    """
+    points = relative_points(revision.batch.rows)
     return {
         "stations": stations.to_payload(),
-        "pair_ranges": [[str(min(column)), str(max(column))] for column in columns],
+        "relative_points": [[str(value) for value in point] for point in points],
+        "pair_ranges": [
+            [str(lower), str(upper)]
+            for lower, upper in marginal_pair_ranges(stations, points)
+        ],
     }
